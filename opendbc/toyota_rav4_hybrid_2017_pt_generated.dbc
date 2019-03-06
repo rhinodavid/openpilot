@@ -26,6 +26,11 @@ CM BO_ STEERING_IPAS_COMMA "Copy of msg 614 so we can do angle control while the
   SG_ STATE : 39|8@0+ (1,0) [0|255] "" EON
   SG_ CHECKSUM : 47|8@0+ (1,0) [0|3] "" EON
 
+ BO_ 515 COMMA_BUTTONS: 8 XXX
+  SG_ ACC_DISTANCE : 1|2@0+ (1,0) [0|1] "" XXX
+
+CM_ SG_ 515 ACC_DISTANCE "acc follow distance button press commanded by https://github.com/rhinodavid/CommaButtons";
+
  VAL_ 513 STATE 5 "FAULT_TIMEOUT" 4 "FAULT_STARTUP" 3 "FAULT_SCE" 2 "FAULT_SEND" 1 "FAULT_BAD_CHECKSUM" 0 "NO_FAULT" ;
 
 
