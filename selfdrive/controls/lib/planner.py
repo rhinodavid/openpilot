@@ -2,6 +2,7 @@
 import zmq
 import math
 import numpy as np
+from cereal import car
 from collections import defaultdict
 from common.params import Params
 from common.realtime import sec_since_boot
@@ -15,6 +16,9 @@ from selfdrive.controls.lib.longitudinal_mpc import libmpc_py
 from selfdrive.controls.lib.speed_smoother import speed_smoother
 from selfdrive.controls.lib.longcontrol import LongCtrlState, MIN_CAN_SPEED
 from selfdrive.controls.lib.radar_helpers import _LEAD_ACCEL_TAU
+
+import logging
+logging.basicConfig(filename='dmw.log', level=logging.DEBUG, format='%(asctime)s.%(msecs)03d\t %(message)s', datefmt='%m/%d %H:%M:%S')
 
 NO_CURVATURE_SPEED = 200. * CV.MPH_TO_MS
 
@@ -130,6 +134,18 @@ class FCWChecker(object):
 
 
 class LongitudinalMpc(object):
+  # https://github.com/rhinodavid/CommaButtons
+  DEFAULT_FOLLOW_TIME = 1.8
+  FOLLOW_TIMES = {
+    car.CarState.CommaButtonTimeGap.near: 1.0,
+    car.CarState.CommaButtonTimeGap.medium: 1.4,
+    car.CarState.CommaButtonTimeGap.far: 1.8,
+    car.CarState.CommaButtonTimeGap.unknown: DEFAULT_FOLLOW_TIME
+  }
+  logging.debug("Setting up follow times constants")
+  logging.debug("Default follow time: %s" % DEFAULT_FOLLOW_TIME)
+  logging.debug("Follow times: %s" % FOLLOW_TIMES)
+
   def __init__(self, mpc_id, live_longitudinal_mpc):
     self.live_longitudinal_mpc = live_longitudinal_mpc
     self.mpc_id = mpc_id
@@ -211,10 +227,17 @@ class LongitudinalMpc(object):
 
     # Calculate mpc
     t = sec_since_boot()
-    # hardcode follow time for now
-    follow_time = 1.8
+
+    # comma buttons
+    # https://github.com/rhinodavid/CommaButtons
+    set_time_gap = CS.carState.timeGap
+    follow_time = self.FOLLOW_TIMES[set_time_gap] if set_time_gap in self.FOLLOW_TIMES else self.DEFAULT_FOLLOW_TIME
     n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, follow_time)
     duration = int((sec_since_boot() - t) * 1e9)
+
+    if duration % 10 == 0:
+      logging.debug("set time gap: %s" % set_time_gap)
+
     self.send_mpc_solution(n_its, duration)
 
     # Get solution. MPC timestep is 0.2 s, so interpolation to 0.05 s is needed
