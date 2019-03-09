@@ -136,15 +136,15 @@ class FCWChecker(object):
 class LongitudinalMpc(object):
   # https://github.com/rhinodavid/CommaButtons
   DEFAULT_FOLLOW_TIME = 1.8
-  FOLLOW_TIMES = {
-    int(car.CarState.CommaButtonTimeGap.near): 1.0,
-    int(car.CarState.CommaButtonTimeGap.medium): 1.4,
-    int(car.CarState.CommaButtonTimeGap.far): 1.8,
-    int(car.CarState.CommaButtonTimeGap.unknown): DEFAULT_FOLLOW_TIME
+  TIME_GAP_VALUES = {
+    'near': 1.0,
+    'medium': 1.4,
+    'far': 1.8,
+    'unknown': DEFAULT_FOLLOW_TIME
   }
   logging.debug("Setting up follow times constants")
   logging.debug("Default follow time: %s" % DEFAULT_FOLLOW_TIME)
-  logging.debug("Follow times: %s" % FOLLOW_TIMES)
+  logging.debug("Follow times: %s" % TIME_GAP_VALUES)
 
   def __init__(self, mpc_id, live_longitudinal_mpc):
     self.live_longitudinal_mpc = live_longitudinal_mpc
@@ -162,7 +162,7 @@ class LongitudinalMpc(object):
     self.last_cloudlog_t = 0.0
     
     # delete me Comma Buttons https://github.com/rhinodavid/CommaButtons
-    self.prev_time_gap = int(car.CarState.CommaButtonTimeGap.far)
+    self.prev_time_gap = 'far'
     self.log_this_cycle = False
 
   def send_mpc_solution(self, qp_iterations, calculation_time):
@@ -234,17 +234,17 @@ class LongitudinalMpc(object):
 
     # comma buttons
     # https://github.com/rhinodavid/CommaButtons
-    set_time_gap = int(CS.carState.timeGap)
+    set_time_gap = CS.carState.timeGap
 
     self.log_this_cycle = True if self.prev_time_gap != set_time_gap else False
 
     if self.log_this_cycle:
-      prev_follow_time = self.FOLLOW_TIMES[self.prev_time_gap] if self.prev_time_gap in self.FOLLOW_TIMES else self.DEFAULT_FOLLOW_TIME
+      prev_follow_time = self.TIME_GAP_VALUES[self.prev_time_gap] if self.prev_time_gap in self.TIME_GAP_VALUES else self.DEFAULT_FOLLOW_TIME
       logging.debug("prev time_gap:\t%s" % self.prev_time_gap)
       logging.debug("prev follow time:\t%.2f" % prev_follow_time)
       logging.debug("prev n_its:\t%.6f"% self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, prev_follow_time))
 
-    follow_time = self.FOLLOW_TIMES[set_time_gap] if set_time_gap in self.FOLLOW_TIMES else self.DEFAULT_FOLLOW_TIME
+    follow_time = self.TIME_GAP_VALUES[set_time_gap] if set_time_gap in self.TIME_GAP_VALUES else self.DEFAULT_FOLLOW_TIME
     n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, follow_time)
     duration = int((sec_since_boot() - t) * 1e9)
 
