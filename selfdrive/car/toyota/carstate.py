@@ -96,7 +96,7 @@ class CarState(object):
     # Comma Buttons -- see https://github.com/rhinodavid/CommaButtons
     self.acc_needs_advance = False
     self.button_press_read_lines = 0
-    self.commanded_time_gap = 1 # 1: far, 2: medium, 3: close
+    self.commanded_time_gap = 3 # 1: far, 2: medium, 3: close
     # prev_acc_button_state [0|1] changes based on Follow Distance button presses
     # ex: 0...0...0...[button press]...1...1...1...[button press]...0...0...0
     self.prev_acc_button_state = 0

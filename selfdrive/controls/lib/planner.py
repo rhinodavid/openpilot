@@ -160,6 +160,10 @@ class LongitudinalMpc(object):
     self.new_lead = False
 
     self.last_cloudlog_t = 0.0
+    
+    # delete me Comma Buttons https://github.com/rhinodavid/CommaButtons
+    self.prev_time_gap = 3
+    self.log_this_cycle = False
 
   def send_mpc_solution(self, qp_iterations, calculation_time):
     qp_iterations = max(0, qp_iterations)
@@ -231,12 +235,24 @@ class LongitudinalMpc(object):
     # comma buttons
     # https://github.com/rhinodavid/CommaButtons
     set_time_gap = CS.carState.timeGap
+
+    self.log_this_cycle = True if self.prev_time_gap != set_time_gap else False
+
+    if self.log_this_cycle:
+      prev_follow_time = self.FOLLOW_TIMES[self.prev_time_gap] if self.prev_time_gap in self.FOLLOW_TIMES else self.DEFAULT_FOLLOW_TIME
+      logging.debug("prev time_gap:\t%s" % self.prev_time_gap)
+      logging.debug("prev follow time:\t%s" % prev_follow_time)
+      logging.debug("prev n_its:\t%s"% self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, prev_follow_time))
+
     follow_time = self.FOLLOW_TIMES[set_time_gap] if set_time_gap in self.FOLLOW_TIMES else self.DEFAULT_FOLLOW_TIME
     n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, follow_time)
     duration = int((sec_since_boot() - t) * 1e9)
 
-    if duration % 10 == 0:
-      logging.debug("set time gap: %s" % set_time_gap)
+    if self.log_this_cycle:
+      logging.debug("new time_gap:\t%s" % set_time_gap)
+      logging.debug("new follow time\t%s" % follow_time)
+      logging.debug("new n_its\t%s" % n_its)
+    self.prev_time_gap = set_time_gap
 
     self.send_mpc_solution(n_its, duration)
 
