@@ -137,7 +137,7 @@ class LongitudinalMpc(object):
   # https://github.com/rhinodavid/CommaButtons
   DEFAULT_FOLLOW_TIME = 1.8
   TIME_GAP_VALUES = {
-    'near': 1.0,
+    'near': 0.9,
     'medium': 1.4,
     'far': 1.8,
     'unknown': DEFAULT_FOLLOW_TIME
@@ -164,6 +164,7 @@ class LongitudinalMpc(object):
     # delete me Comma Buttons https://github.com/rhinodavid/CommaButtons
     self.prev_time_gap = 'far'
     self.log_this_cycle = False
+    self.v_mpc_future_prev = 0.
 
   def send_mpc_solution(self, qp_iterations, calculation_time):
     qp_iterations = max(0, qp_iterations)
@@ -242,17 +243,10 @@ class LongitudinalMpc(object):
       prev_follow_time = self.TIME_GAP_VALUES[self.prev_time_gap] if self.prev_time_gap in self.TIME_GAP_VALUES else self.DEFAULT_FOLLOW_TIME
       logging.debug("prev time_gap:\t%s" % self.prev_time_gap)
       logging.debug("prev follow time:\t%.2f" % prev_follow_time)
-      logging.debug("prev n_its:\t%.6f"% self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, prev_follow_time))
 
     follow_time = self.TIME_GAP_VALUES[set_time_gap] if set_time_gap in self.TIME_GAP_VALUES else self.DEFAULT_FOLLOW_TIME
     n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, follow_time)
     duration = int((sec_since_boot() - t) * 1e9)
-
-    if self.log_this_cycle:
-      logging.debug("new time_gap:\t%s" % set_time_gap)
-      logging.debug("new follow time\t%.2f" % follow_time)
-      logging.debug("new n_its\t%.6f" % n_its)
-    self.prev_time_gap = set_time_gap
 
     self.send_mpc_solution(n_its, duration)
 
@@ -260,6 +254,14 @@ class LongitudinalMpc(object):
     self.v_mpc = self.mpc_solution[0].v_ego[1]
     self.a_mpc = self.mpc_solution[0].a_ego[1]
     self.v_mpc_future = self.mpc_solution[0].v_ego[10]
+
+    if self.log_this_cycle:
+      logging.debug("new time_gap:\t%s" % set_time_gap)
+      logging.debug("new follow time\t%.2f" % follow_time)
+      logging.debug("v mpc future prev\t%.6f" % self.v_mpc_future_prev)
+      logging.debug("v mpc future\t%.6f" % self.v_mpc_future)
+    self.prev_time_gap = set_time_gap
+    self.v_mpc_future_prev = self.v_mpc_future
 
     # Reset if NaN or goes through lead car
     dls = np.array(list(self.mpc_solution[0].x_l)) - np.array(list(self.mpc_solution[0].x_ego))
