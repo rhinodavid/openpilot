@@ -96,7 +96,7 @@ class CarState(object):
     # Comma Buttons -- see https://github.com/rhinodavid/CommaButtons
     self.acc_needs_advance = False
     self.button_press_read_lines = 0
-    self.commanded_time_gap = 3 # 1: far, 2: medium, 3: close
+    self.commanded_time_gap = 'far' # cereal.car.CarState.CommaButtonTimeGap
     # prev_acc_button_state [0|1] changes based on Follow Distance button presses
     # ex: 0...0...0...[button press]...1...1...1...[button press]...0...0...0
     self.prev_acc_button_state = 0
@@ -200,4 +200,11 @@ class CarState(object):
     if self.acc_needs_advance and self.read_distance_lines != self.button_press_read_lines:
       # ACC distance setting has been advanced
       self.acc_needs_advance = False
-      self.commanded_time_gap = self.read_distance_lines
+      if self.read_distance_lines == 3:
+        self.commanded_time_gap = 'far'
+      elif self.read_distance_lines == 2:
+        self.commanded_time_gap = 'medium'
+      elif self.read_distance_lines == 1:
+        self.commanded_time_gap = 'near'
+      else:
+        self.commanded_time_gap = 'unknown'

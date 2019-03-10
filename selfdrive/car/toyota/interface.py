@@ -272,14 +272,7 @@ class CarInterface(object):
 
     # comma buttons
     # see https://github.com/rhinodavid/CommmaButtons
-    if self.CS.commanded_time_gap == 3:
-      ret.timeGap = 'far'
-    elif self.CS.commanded_time_gap == 2:
-      ret.timeGap = 'medium'
-    elif self.CS.commanded_time_gap == 1:
-      ret.timeGap = 'near'
-    else:
-      ret.timeGap = 'unknown'
+    ret.timeGap = self.CS.commanded_time_gap
 
     if self.CP.carFingerprint in [CAR.RAV4H, CAR.HIGHLANDERH, CAR.HIGHLANDER] or self.CP.enableGasInterceptor:
       # ignore standstill in hybrid vehicles, since pcm allows to restart without
