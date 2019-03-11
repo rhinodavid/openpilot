@@ -121,8 +121,20 @@ struct CarState {
   doorOpen @24 :Bool;
   seatbeltUnlatched @25 :Bool;
 
+  # added to support https://github.com/rhinodavid/OpenpilotButtons
+  timeGap @26 :CommaButtonTimeGap;
+
   # which packets this state came from
   canMonoTimes @12: List(UInt64);
+
+  # commanded and set follow distance
+  # see https://github.com/rhinodavid/OpenpilotButtons
+  enum CommaButtonTimeGap {
+    unknown @0;
+    near @1;
+    medium @2;
+    far @3;
+  }
 
   struct WheelSpeeds {
     # optional wheel speeds
@@ -151,7 +163,6 @@ struct CarState {
     brake @7;
   }
 
-
   # send on change
   struct ButtonEvent {
     pressed @0 :Bool;
@@ -170,6 +181,7 @@ struct CarState {
     }
   }
 }
+
 
 # ******* radar state @ 20hz *******
 
