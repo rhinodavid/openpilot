@@ -16,7 +16,8 @@ from selfdrive.controls.lib.drive_helpers import learn_angle_offset, \
                                                  create_event, \
                                                  EventTypes as ET, \
                                                  update_v_cruise, \
-                                                 initialize_v_cruise
+                                                 initialize_v_cruise, \
+                                                 TimeGaps
 from selfdrive.controls.lib.longcontrol import LongControl, STARTING_TARGET_SPEED
 from selfdrive.controls.lib.latcontrol import LatControl
 from selfdrive.controls.lib.alertmanager import AlertManager
@@ -114,7 +115,7 @@ def data_sample(CI, CC, plan_sock, path_plan_sock, thermal, calibration, health,
   return CS, events, cal_status, cal_perc, overtemp, free_space, low_battery, mismatch_counter, plan, path_plan
 
 
-def state_transition(CS, CP, state, events, soft_disable_timer, v_cruise_kph, AM):
+def state_transition(CS, CP, state, events, soft_disable_timer, v_cruise_kph, time_gap, AM):
   """Compute conditional state transitions and execute actions on state transitions"""
   enabled = isEnabled(state)
 
@@ -198,7 +199,13 @@ def state_transition(CS, CP, state, events, soft_disable_timer, v_cruise_kph, AM
     elif not get_events(events, [ET.PRE_ENABLE]):
       state = State.enabled
 
-  return state, soft_disable_timer, v_cruise_kph, v_cruise_kph_last
+  # Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+  # if there has been an acc time gap button press, advance the time gap
+  for e in CS.buttonEvents:
+    if e.type == "accTimeGapButton" and e.pressed == True:
+      time_gap = TimeGaps.advance(time_gap)
+
+  return state, soft_disable_timer, v_cruise_kph, v_cruise_kph_last, time_gap
 
 
 def state_control(plan, path_plan, CS, CP, state, events, v_cruise_kph, v_cruise_kph_last, AM, rk,
@@ -280,7 +287,7 @@ def state_control(plan, path_plan, CS, CP, state, events, v_cruise_kph, v_cruise
   return actuators, v_cruise_kph, driver_status, angle_offset, v_acc_sol, a_acc_sol
 
 
-def data_send(plan, path_plan, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, rk, carstate,
+def data_send(plan, path_plan, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, time_gap, rk, carstate,
               carcontrol, live100, AM, driver_status,
               LaC, LoC, angle_offset, passive, start_time, params, v_acc, a_acc):
   """Send actuators and hud commands to the car, send live100 and MPC logging"""
@@ -309,6 +316,10 @@ def data_send(plan, path_plan, CS, CI, CP, VM, state, events, actuators, v_cruis
     CC.hudControl.leftLaneVisible = bool(path_plan.pathPlan.lProb > 0.5)
     CC.hudControl.visualAlert = AM.visual_alert
     CC.hudControl.audibleAlert = AM.audible_alert
+    # Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    # check and see if the time gap lines we're reading are the ones we want to show.
+    # if they diverge, send tell the hudControl to update
+    CC.hudControl.advanceTimeGapLines = CS.readTimeGapLines != 0 and CS.readTimeGapLines != TimeGaps.to_lines(time_gap)
 
     # send car controls over can
     CI.apply(CC)
@@ -454,6 +465,9 @@ def controlsd_thread(gctx=None, rate=100):
   mismatch_counter = 0
   low_battery = False
 
+  # Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+  time_gap = TimeGaps.FAR
+
   plan = messaging.new_message()
   plan.init('plan')
   path_plan = messaging.new_message()
@@ -493,8 +507,8 @@ def controlsd_thread(gctx=None, rate=100):
 
     if not passive:
       # update control state
-      state, soft_disable_timer, v_cruise_kph, v_cruise_kph_last = \
-        state_transition(CS, CP, state, events, soft_disable_timer, v_cruise_kph, AM)
+      state, soft_disable_timer, v_cruise_kph, v_cruise_kph_last, time_gap = \
+        state_transition(CS, CP, state, events, soft_disable_timer, v_cruise_kph, time_gap, AM)
       prof.checkpoint("State transition")
 
     # Compute actuators (runs PID loops and lateral MPC)
@@ -506,7 +520,7 @@ def controlsd_thread(gctx=None, rate=100):
     prof.checkpoint("State Control")
 
     # Publish data
-    CC = data_send(plan, path_plan, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, rk, carstate, carcontrol,
+    CC = data_send(plan, path_plan, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, time_gap, rk, carstate, carcontrol,
                    live100, AM, driver_status, LaC, LoC, angle_offset, passive, start_time, params, v_acc, a_acc)
     prof.checkpoint("Sent")
 

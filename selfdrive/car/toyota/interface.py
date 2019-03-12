@@ -13,7 +13,6 @@ try:
 except ImportError:
   CarController = None
 
-
 class CarInterface(object):
   def __init__(self, CP, sendcan=None):
     self.CP = CP
@@ -270,16 +269,8 @@ class CarInterface(object):
     ret.cruiseState.available = bool(self.CS.main_on)
     ret.cruiseState.speedOffset = 0.
 
-    # comma buttons
-    # see https://github.com/rhinodavid/CommmaButtons
-    if self.CS.commanded_time_gap == 3:
-      ret.timeGap = car.CarState.CommaButtonTimeGap.far
-    elif self.CS.commanded_time_gap == 2:
-      ret.timeGap = car.CarState.CommaButtonTimeGap.medium
-    elif self.CS.commanded_time_gap == 1:
-      ret.timeGap = car.CarState.CommaButtonTimeGap.near
-    else:
-      ret.timeGap = car.CarState.CommaButtonTimeGap.unknown
+    # Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    ret.readTimeGapLines = self.CS.read_time_gap_lines
 
     if self.CP.carFingerprint in [CAR.RAV4H, CAR.HIGHLANDERH, CAR.HIGHLANDER] or self.CP.enableGasInterceptor:
       # ignore standstill in hybrid vehicles, since pcm allows to restart without
@@ -300,6 +291,13 @@ class CarInterface(object):
       be = car.CarState.ButtonEvent.new_message()
       be.type = 'rightBlinker'
       be.pressed = self.CS.right_blinker_on != 0
+      buttonEvents.append(be)
+
+    # Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    if self.CS.time_gap_button_pressed:
+      be = car.CarState.ButtonEvent.new_message()
+      be.type = 'accTimeGapButton'
+      be.pressed = True
       buttonEvents.append(be)
 
     ret.buttonEvents = buttonEvents
@@ -380,7 +378,8 @@ class CarInterface(object):
     self.CC.update(self.sendcan, c.enabled, self.CS, self.frame,
                    c.actuators, c.cruiseControl.cancel, c.hudControl.visualAlert,
                    c.hudControl.audibleAlert, self.forwarding_camera,
-                   c.hudControl.leftLaneVisible, c.hudControl.rightLaneVisible, c.hudControl.leadVisible)
+                   c.hudControl.leftLaneVisible, c.hudControl.rightLaneVisible,
+                   c.hudControl.leadVisible, c.hudControl.advanceTimeGapLines)
 
     self.frame += 1
     return False

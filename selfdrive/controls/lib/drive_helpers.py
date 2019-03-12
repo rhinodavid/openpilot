@@ -33,6 +33,26 @@ class EventTypes:
   IMMEDIATE_DISABLE = 'immediateDisable'
   PERMANENT = 'permanent'
 
+# Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+class TimeGaps:
+  FAR = 'far'
+  MEDIUM = 'medium'
+  NEAR = 'near'
+
+  @staticmethod
+  def to_lines(time_gap):
+    """ Convert a time gap constant to the number of time gap lines to show on the HUD """
+    if time_gap == TimeGaps.FAR: return 3
+    if time_gap == TimeGaps.MEDIUM: return 2
+    if time_gap == TimeGaps.NEAR: return 1
+    raise ValueError('%s is not a valid time gap value' % time_gap)
+
+  @staticmethod
+  def advance(prev_time_gap):
+    if prev_time_gap == TimeGaps.FAR: return TimeGaps.MEDIUM
+    if prev_time_gap == TimeGaps.MEDIUM: return TimeGaps.NEAR
+    if prev_time_gap == TimeGaps.NEAR: return TimeGaps.FAR
+    raise ValueError('%s is not a valid time gap value' % prev_time_gap)
 
 def create_event(name, types):
   event = car.CarEvent.new_message()

@@ -121,20 +121,11 @@ struct CarState {
   doorOpen @24 :Bool;
   seatbeltUnlatched @25 :Bool;
 
-  # added to support https://github.com/rhinodavid/OpenpilotButtons
-  timeGap @26 :CommaButtonTimeGap;
+  # added to support OpenpilotButtons -- https://github.com/rhinodavid/OpenpilotButtons
+  readTimeGapLines @26 :Float32; # how many lines the HUD is showing to represent ACC time gap
 
   # which packets this state came from
   canMonoTimes @12: List(UInt64);
-
-  # commanded and set follow distance
-  # see https://github.com/rhinodavid/OpenpilotButtons
-  enum CommaButtonTimeGap {
-    unknown @0;
-    near @1;
-    medium @2;
-    far @3;
-  }
 
   struct WheelSpeeds {
     # optional wheel speeds
@@ -178,6 +169,8 @@ struct CarState {
       altButton1 @6;
       altButton2 @7;
       altButton3 @8;
+      # added to support OpenpilotButtons -- https://github.com/rhinodavid/OpenpilotButtons
+      accTimeGapButton @9; # button that changes how closely the ACC follows the car in front of it
     }
   }
 }
@@ -258,6 +251,8 @@ struct CarControl {
     audibleAlert @5: AudibleAlert;
     rightLaneVisible @6: Bool;
     leftLaneVisible @7: Bool;
+    # Added to support Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    advanceTimeGapLines @8: Bool; # True if HUD is showing wrong time gap and needs to be advanced
 
     enum VisualAlert {
       # these are the choices from the Honda
