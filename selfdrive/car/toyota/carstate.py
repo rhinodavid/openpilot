@@ -47,8 +47,8 @@ def get_can_parser(CP):
     ("IPAS_STATE", "EPS_STATUS", 1),
     ("BRAKE_LIGHTS_ACC", "ESP_CONTROL", 0),
     ("AUTO_HIGH_BEAM", "LIGHT_STALK", 0),
-    # Add the following two values for https://github.com/rhinodavid/CommaButtons
-    ("ACC_DISTANCE", "COMMA_BUTTONS", 0),
+    # Add the following two values for https://github.com/rhinodavid/OpenpilotButtons
+    ("ACC_TIME_GAP", "OPENPILOT_BUTTONS", 0),
     ("DISTANCE_LINES", "PCM_CRUISE_SM", 0),
   ]
 
@@ -93,15 +93,6 @@ class CarState(object):
     self.left_blinker_on = 0
     self.right_blinker_on = 0
 
-    # Comma Buttons -- see https://github.com/rhinodavid/CommaButtons
-    self.acc_needs_advance = False
-    self.button_press_read_lines = 0
-    self.commanded_time_gap = 1 # 1: far, 2: medium, 3: close
-    # prev_acc_button_state [0|1] changes based on Follow Distance button presses
-    # ex: 0...0...0...[button press]...1...1...1...[button press]...0...0...0
-    self.prev_acc_button_state = 0
-    self.read_distance_lines = 0
-
     # initialize can parser
     self.car_fingerprint = CP.carFingerprint
 
@@ -114,6 +105,13 @@ class CarState(object):
                          C=np.matrix([1.0, 0.0]),
                          K=np.matrix([[0.12287673], [0.29666309]]))
     self.v_ego = 0.0
+
+    # Added to support Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    # prev_time_gap_button_state [0|1] changes based on ACC Time Gap button presses
+    # ex: 0...0...0...[button press]...1...1...1...[button press]...0...0...0
+    self.prev_time_gap_button_state = 0
+    self.read_distance_lines = 0
+    self.time_gap_button_pressed = False
 
   def update(self, cp, cp_cam):
     # copy can_valid
@@ -183,21 +181,8 @@ class CarState(object):
     else:
       self.generic_toggle = bool(cp.vl["LIGHT_STALK"]['AUTO_HIGH_BEAM'])
     
-    # added to support https://github.com/rhinodavid/CommaButtons
-    new_acc_button_state = cp.vl["COMMA_BUTTONS"]['ACC_DISTANCE']
+    # Added to support Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    time_gap_button_state = cp.vl["OPENPILOT_BUTTONS"]['ACC_TIME_GAP']
     self.read_distance_lines = cp.vl["PCM_CRUISE_SM"]['DISTANCE_LINES']
-
-    if new_acc_button_state != self.prev_acc_button_state:
-      # we've detected a press of the ACC button
-      self.prev_acc_button_state = new_acc_button_state
-      # only try to change the follow distance if cruise control is active
-      if self.pcm_acc_active:
-        # save the read_lines value. we'll tell the vehicle to update the distance until we
-        # observe the read distance lines change
-        self.button_press_read_lines = self.read_distance_lines
-        self.acc_needs_advance = True
-    
-    if self.acc_needs_advance and self.read_distance_lines != self.button_press_read_lines:
-      # ACC distance setting has been advanced
-      self.acc_needs_advance = False
-      self.commanded_time_gap = self.read_distance_lines
+    self.time_gap_button_pressed = time_gap_button_state != self.prev_time_gap_button_state
+    self.prev_time_gap_button_state = time_gap_button_state

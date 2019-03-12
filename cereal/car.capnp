@@ -121,20 +121,8 @@ struct CarState {
   doorOpen @24 :Bool;
   seatbeltUnlatched @25 :Bool;
 
-  # added to support https://github.com/rhinodavid/OpenpilotButtons
-  timeGap @26 :CommaButtonTimeGap;
-
   # which packets this state came from
   canMonoTimes @12: List(UInt64);
-
-  # commanded and set follow distance
-  # see https://github.com/rhinodavid/OpenpilotButtons
-  enum CommaButtonTimeGap {
-    unknown @0;
-    near @1;
-    medium @2;
-    far @3;
-  }
 
   struct WheelSpeeds {
     # optional wheel speeds
@@ -150,6 +138,15 @@ struct CarState {
     available @2 :Bool;
     speedOffset @3 :Float32;
     standstill @4 :Bool;
+    # added to support OpenpilotButtons -- https://github.com/rhinodavid/OpenpilotButtons
+    timeGap @5 :TimeGap;
+  }
+  
+  enum TimeGap {
+    unknown @0;
+    near @1;
+    medium @2;
+    far @3;
   }
 
   enum GearShifter {
@@ -178,6 +175,8 @@ struct CarState {
       altButton1 @6;
       altButton2 @7;
       altButton3 @8;
+      # added to support OpenpilotButtons -- https://github.com/rhinodavid/OpenpilotButtons
+      accTimeGapButton @9; # button that changes how closely the ACC follows the car in front of it
     }
   }
 }
@@ -247,6 +246,8 @@ struct CarControl {
     override @1: Bool;
     speedOverride @2: Float32;
     accelOverride @3: Float32;
+    # Added to support Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    advanceTimeGap @4: Bool; # True if HUD is showing wrong time gap and needs to be advanced
   }
 
   struct HUDControl {

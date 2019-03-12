@@ -124,7 +124,7 @@ class CarController(object):
     self.packer = CANPacker(dbc_name)
 
   def update(self, sendcan, enabled, CS, frame, actuators,
-             pcm_cancel_cmd, hud_alert, audible_alert, forwarding_camera, left_line, right_line, lead):
+             pcm_cancel_cmd, hud_alert, audible_alert, forwarding_camera, left_line, right_line, lead, advance_time_gap = False):
 
     # *** compute control surfaces ***
 
@@ -214,8 +214,10 @@ class CarController(object):
     elif ECU.APGS in self.fake_ecus:
       can_sends.append(create_ipas_steer_command(self.packer, 0, 0, True))
 
-    # Comma Buttons https://github.com/rhinodavid/CommaButtons
-    distance = 1 if CS.acc_needs_advance else 0
+    # added to support OpenpilotButtons -- https://github.com/rhinodavid/OpenpilotButtons
+    # check to see if the number of time gap lines displayed by the car matches the number
+    # we are trying to command. if they are different, send a distance of 1 to change the displayed number of lines
+    distance = 1 if advance_time_gap else 0
 
     # accel cmd comes from DSU, but we can spam can to cancel the system even if we are using lat only control
     if (frame % 3 == 0 and ECU.DSU in self.fake_ecus) or (pcm_cancel_cmd and ECU.CAM in self.fake_ecus):
