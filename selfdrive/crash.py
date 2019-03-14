@@ -1,10 +1,14 @@
 """Install exception handler for process crash."""
+import logging
 import os
+import sentry_sdk
 import sys
 import threading
 from selfdrive.version import version, dirty
 
 from selfdrive.swaglog import cloudlog
+
+sentry_sdk.init("https://a540b8de0afc4b1cbac75da8f1b8fa6a@sentry.io/1415042")
 
 if os.getenv("NOLOG") or os.getenv("NOCRASH"):
   def capture_exception(*exc_info):
@@ -24,6 +28,7 @@ else:
   def capture_exception(*args, **kwargs):
     client.captureException(*args, **kwargs)
     cloudlog.error("crash", exc_info=kwargs.get('exc_info', 1))
+    logging.error("crash", exc_info=kwargs.get('exc_info', 1))
 
   def bind_user(**kwargs):
     client.user_context(kwargs)
