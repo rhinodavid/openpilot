@@ -59,6 +59,7 @@ raven==5.23.0
 recordclass==0.4.1
 requests==2.10.0
 scipy==0.19.1
+sentry_sdk==0.7.6
 service-identity==16.0.0
 setproctitle==1.1.10
 simplejson==3.8.2
