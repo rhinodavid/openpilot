@@ -428,6 +428,8 @@ struct Live100Data {
   vCurvature @46 :Float32;
   decelForTurn @47 :Bool;
 
+  timeGap @52 :Text; # Openpilot Button -- https://github.com/rhinodavid/OpenpilotButtons
+
   enum ControlState {
     disabled @0;
     preEnabled @1;

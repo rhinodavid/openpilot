@@ -375,6 +375,7 @@ def data_send(plan, path_plan, CS, CI, CP, VM, state, events, actuators, v_cruis
     "startMonoTime": start_time,
     "mapValid": plan.mapValid,
     "forceDecel": bool(force_decel),
+    "timeGap": time_gap, # Openpilot Button -- https://github.com/rhinodavid/OpenpilotButtons
   }
   live100.send(dat.to_bytes())
 
