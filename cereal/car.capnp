@@ -139,6 +139,15 @@ struct CarState {
     available @2 :Bool;
     speedOffset @3 :Float32;
     standstill @4 :Bool;
+    # added to support OpenpilotButtons -- https://github.com/rhinodavid/OpenpilotButtons
+    timeGap @5 :TimeGap;
+
+    enum TimeGap {
+      unknown @0;
+      near @1;
+      medium @2;
+      far @3;
+    }
   }
 
   enum GearShifter {
@@ -151,7 +160,6 @@ struct CarState {
     low @6;
     brake @7;
   }
-
 
   # send on change
   struct ButtonEvent {
@@ -168,9 +176,12 @@ struct CarState {
       altButton1 @6;
       altButton2 @7;
       altButton3 @8;
+      # added to support OpenpilotButtons -- https://github.com/rhinodavid/OpenpilotButtons
+      accTimeGapButton @9; # button that changes how closely the ACC follows the car in front of it
     }
   }
 }
+
 
 # ******* radar state @ 20hz *******
 
@@ -236,6 +247,8 @@ struct CarControl {
     override @1: Bool;
     speedOverride @2: Float32;
     accelOverride @3: Float32;
+    # Added to support Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    advanceTimeGap @4: Bool; # True if HUD is showing wrong time gap and needs to be advanced
   }
 
   struct HUDControl {

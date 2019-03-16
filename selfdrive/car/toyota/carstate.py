@@ -47,6 +47,9 @@ def get_can_parser(CP):
     ("IPAS_STATE", "EPS_STATUS", 1),
     ("BRAKE_LIGHTS_ACC", "ESP_CONTROL", 0),
     ("AUTO_HIGH_BEAM", "LIGHT_STALK", 0),
+    # Add the following two values for https://github.com/rhinodavid/OpenpilotButtons
+    ("ACC_TIME_GAP", "OPENPILOT_BUTTONS", 0),
+    ("DISTANCE_LINES", "PCM_CRUISE_SM", 0),
   ]
 
   checks = [
@@ -102,6 +105,13 @@ class CarState(object):
                          C=np.matrix([1.0, 0.0]),
                          K=np.matrix([[0.12287673], [0.29666309]]))
     self.v_ego = 0.0
+
+    # Added to support Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    # prev_time_gap_button_state [0|1] changes based on ACC Time Gap button presses
+    # ex: 0...0...0...[button press]...1...1...1...[button press]...0...0...0
+    self.prev_time_gap_button_state = 0
+    self.read_distance_lines = 0
+    self.time_gap_button_pressed = False
 
   def update(self, cp, cp_cam):
     # copy can_valid
@@ -170,3 +180,9 @@ class CarState(object):
       self.generic_toggle = cp.vl["AUTOPARK_STATUS"]['STATE'] != 0
     else:
       self.generic_toggle = bool(cp.vl["LIGHT_STALK"]['AUTO_HIGH_BEAM'])
+    
+    # Added to support Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    time_gap_button_state = cp.vl["OPENPILOT_BUTTONS"]['ACC_TIME_GAP']
+    self.read_distance_lines = cp.vl["PCM_CRUISE_SM"]['DISTANCE_LINES']
+    self.time_gap_button_pressed = time_gap_button_state != self.prev_time_gap_button_state
+    self.prev_time_gap_button_state = time_gap_button_state
