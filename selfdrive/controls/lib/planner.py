@@ -145,6 +145,23 @@ class LongitudinalMpc(object):
 
     self.last_cloudlog_t = 0.0
 
+  def scale_time_gap(v_ego, commanded_time_gap):
+    """
+    Raise the time gap as we slow down. Use the full time gap at 30mph and increase
+    it to 1.8s at 25mph
+    Keyword arguments:
+    v_ego -- the vehicle speed in m/s
+    commanded_time_gap -- the time gap the set by the user in s
+    See Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    """
+    ms30 = 30 * CV.MPH_TO_MS
+    ms20 = 20 * CV.MPH_TO_MS
+    if v_ego > ms30:
+      return commanded_time_gap
+    if v_ego < ms20:
+      return 1.8
+    return round(float(np.interp(v_ego, [ms20, ms30], [1.8, commanded_time_gap])), 2)
+
   def send_mpc_solution(self, qp_iterations, calculation_time):
     qp_iterations = max(0, qp_iterations)
     dat = messaging.new_message()
@@ -211,10 +228,13 @@ class LongitudinalMpc(object):
 
     # Calculate mpc
     t = sec_since_boot()
+
     # hardcode follow time for now
     follow_time = 1.8
     distance_cost = 0.1
-    n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, follow_time, distance_cost)
+    follow_time_value = scale_time_gap(v_ego, follow_time)
+
+    n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, follow_time_value, distance_cost)
     duration = int((sec_since_boot() - t) * 1e9)
     self.send_mpc_solution(n_its, duration)
 
