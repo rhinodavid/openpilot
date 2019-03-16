@@ -1,6 +1,7 @@
 from cereal import car
 from common.numpy_fast import clip
 from selfdrive.config import Conversions as CV
+import logging
 
 # kph
 V_CRUISE_MAX = 144
@@ -33,6 +34,40 @@ class EventTypes:
   IMMEDIATE_DISABLE = 'immediateDisable'
   PERMANENT = 'permanent'
 
+# Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+class TimeGaps:
+  FAR = 'far'
+  MEDIUM = 'medium'
+  NEAR = 'near'
+  UNKNOWN = 'unknown'
+
+  @staticmethod
+  def advance(prev_time_gap):
+    if prev_time_gap == TimeGaps.FAR: return TimeGaps.MEDIUM
+    if prev_time_gap == TimeGaps.MEDIUM: return TimeGaps.NEAR
+    if prev_time_gap == TimeGaps.NEAR: return TimeGaps.FAR
+    logging.error("Got a bad time gap: %s" % prev_time_gap)
+    raise ValueError('%s is not a valid time gap value' % prev_time_gap)
+
+  @staticmethod
+  def from_toyota_distance_lines(distance_lines):
+    """
+    Toyota DBC holds time gap in DISTANCE_LINES signal of the PCM_CRUISE_SM message.
+    Note: This is more than just the lines shown; this is the time gap setting.
+    Convert a distance lines reading to a Time Gap enum.
+    """
+    if distance_lines == 3: return TimeGaps.FAR
+    if distance_lines == 2: return TimeGaps.MEDIUM
+    if distance_lines == 1: return TimeGaps.NEAR
+    return TimeGaps.UNKNOWN
+
+  @staticmethod
+  def to_toyota_lines(time_gap):
+    """ Convert a time gap constant to the number of time gap lines to show on the HUD """
+    if time_gap == TimeGaps.FAR: return 3
+    if time_gap == TimeGaps.MEDIUM: return 2
+    if time_gap == TimeGaps.NEAR: return 1
+    raise ValueError('%s is not a valid time gap value' % time_gap)
 
 def create_event(name, types):
   event = car.CarEvent.new_message()
