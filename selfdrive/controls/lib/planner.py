@@ -60,7 +60,208 @@ def limit_accel_in_turns(v_ego, angle_steers, a_target, CP):
   a_target[1] = min(a_target[1], a_x_allowed)
   return a_target
 
+def scale_time_gap(v_ego, commanded_time_gap):
+  """
+  Raise the time gap as we slow down. Use the full time gap at 30mph and increase
+  it to 1.8s at 25mph
+  Keyword arguments:
+  v_ego -- the vehicle speed in m/s
+  commanded_time_gap -- the time gap the set by the user in s
+  See Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+  """
+  ms30 = 30. * CV.MPH_TO_MS
+  ms20 = 20. * CV.MPH_TO_MS
+  if v_ego > ms30:
+    return commanded_time_gap
+  if v_ego < ms20:
+    return 1.8
+  return round(float(np.interp(v_ego, [ms20, ms30], [1.8, commanded_time_gap])), 2)
 
+<<<<<<< HEAD
+=======
+class FCWChecker(object):
+  def __init__(self):
+    self.reset_lead(0.0)
+
+  def reset_lead(self, cur_time):
+    self.last_fcw_a = 0.0
+    self.v_lead_max = 0.0
+    self.lead_seen_t = cur_time
+    self.last_fcw_time = 0.0
+    self.last_min_a = 0.0
+
+    self.counters = defaultdict(lambda: 0)
+
+  @staticmethod
+  def calc_ttc(v_ego, a_ego, x_lead, v_lead, a_lead):
+    max_ttc = 5.0
+
+    v_rel = v_ego - v_lead
+    a_rel = a_ego - a_lead
+
+    # assuming that closing gap ARel comes from lead vehicle decel,
+    # then limit ARel so that v_lead will get to zero in no sooner than t_decel.
+    # This helps underweighting ARel when v_lead is close to zero.
+    t_decel = 2.
+    a_rel = np.minimum(a_rel, v_lead / t_decel)
+
+    # delta of the quadratic equation to solve for ttc
+    delta = v_rel**2 + 2 * x_lead * a_rel
+
+    # assign an arbitrary high ttc value if there is no solution to ttc
+    if delta < 0.1 or (np.sqrt(delta) + v_rel < 0.1):
+      ttc = max_ttc
+    else:
+      ttc = np.minimum(2 * x_lead / (np.sqrt(delta) + v_rel), max_ttc)
+    return ttc
+
+  def update(self, mpc_solution, cur_time, v_ego, a_ego, x_lead, v_lead, a_lead, y_lead, vlat_lead, fcw_lead, blinkers):
+    mpc_solution_a = list(mpc_solution[0].a_ego)
+    self.last_min_a = min(mpc_solution_a)
+    self.v_lead_max = max(self.v_lead_max, v_lead)
+
+    if (fcw_lead > 0.99):
+      ttc = self.calc_ttc(v_ego, a_ego, x_lead, v_lead, a_lead)
+      self.counters['v_ego'] = self.counters['v_ego'] + 1 if v_ego > 5.0 else 0
+      self.counters['ttc'] = self.counters['ttc'] + 1 if ttc < 2.5 else 0
+      self.counters['v_lead_max'] = self.counters['v_lead_max'] + 1 if self.v_lead_max > 2.5 else 0
+      self.counters['v_ego_lead'] = self.counters['v_ego_lead'] + 1 if v_ego > v_lead else 0
+      self.counters['lead_seen'] = self.counters['lead_seen'] + 0.33
+      self.counters['y_lead'] = self.counters['y_lead'] + 1 if abs(y_lead) < 1.0 else 0
+      self.counters['vlat_lead'] = self.counters['vlat_lead'] + 1 if abs(vlat_lead) < 0.4 else 0
+      self.counters['blinkers'] = self.counters['blinkers'] + 10.0 / (20 * 3.0) if not blinkers else 0
+
+      a_thr = interp(v_lead, _FCW_A_ACT_BP, _FCW_A_ACT_V)
+      a_delta = min(mpc_solution_a[:15]) - min(0.0, a_ego)
+
+      fcw_allowed = all(c >= 10 for c in self.counters.values())
+      if (self.last_min_a < -3.0 or a_delta < a_thr) and fcw_allowed and self.last_fcw_time + 5.0 < cur_time:
+        self.last_fcw_time = cur_time
+        self.last_fcw_a = self.last_min_a
+        return True
+
+    return False
+
+
+class LongitudinalMpc(object):
+  def __init__(self, mpc_id, live_longitudinal_mpc):
+    self.live_longitudinal_mpc = live_longitudinal_mpc
+    self.mpc_id = mpc_id
+
+    self.setup_mpc()
+    self.v_mpc = 0.0
+    self.v_mpc_future = 0.0
+    self.a_mpc = 0.0
+    self.v_cruise = 0.0
+    self.prev_lead_status = False
+    self.prev_lead_x = 0.0
+    self.new_lead = False
+
+    self.last_cloudlog_t = 0.0
+
+  def send_mpc_solution(self, qp_iterations, calculation_time):
+    qp_iterations = max(0, qp_iterations)
+    dat = messaging.new_message()
+    dat.init('liveLongitudinalMpc')
+    dat.liveLongitudinalMpc.xEgo = list(self.mpc_solution[0].x_ego)
+    dat.liveLongitudinalMpc.vEgo = list(self.mpc_solution[0].v_ego)
+    dat.liveLongitudinalMpc.aEgo = list(self.mpc_solution[0].a_ego)
+    dat.liveLongitudinalMpc.xLead = list(self.mpc_solution[0].x_l)
+    dat.liveLongitudinalMpc.vLead = list(self.mpc_solution[0].v_l)
+    dat.liveLongitudinalMpc.cost = self.mpc_solution[0].cost
+    dat.liveLongitudinalMpc.aLeadTau = self.a_lead_tau
+    dat.liveLongitudinalMpc.qpIterations = qp_iterations
+    dat.liveLongitudinalMpc.mpcId = self.mpc_id
+    dat.liveLongitudinalMpc.calculationTime = calculation_time
+    self.live_longitudinal_mpc.send(dat.to_bytes())
+
+  def setup_mpc(self):
+    ffi, self.libmpc = libmpc_py.get_libmpc(self.mpc_id)
+    self.libmpc.init(MPC_COST_LONG.TTC, MPC_COST_LONG.DISTANCE,
+                     MPC_COST_LONG.ACCELERATION, MPC_COST_LONG.JERK)
+
+    self.mpc_solution = ffi.new("log_t *")
+    self.cur_state = ffi.new("state_t *")
+    self.cur_state[0].v_ego = 0
+    self.cur_state[0].a_ego = 0
+    self.a_lead_tau = _LEAD_ACCEL_TAU
+
+  def set_cur_state(self, v, a):
+    self.cur_state[0].v_ego = v
+    self.cur_state[0].a_ego = a
+
+  def update(self, CS, lead, v_cruise_setpoint):
+    v_ego = CS.carState.vEgo
+
+    # Setup current mpc state
+    self.cur_state[0].x_ego = 0.0
+
+    if lead is not None and lead.status:
+      x_lead = lead.dRel
+      v_lead = max(0.0, lead.vLead)
+      a_lead = lead.aLeadK
+
+      if (v_lead < 0.1 or -a_lead / 2.0 > v_lead):
+        v_lead = 0.0
+        a_lead = 0.0
+
+      self.a_lead_tau = max(lead.aLeadTau, (a_lead**2 * math.pi) / (2 * (v_lead + 0.01)**2))
+      self.new_lead = False
+      if not self.prev_lead_status or abs(x_lead - self.prev_lead_x) > 2.5:
+        self.libmpc.init_with_simulation(self.v_mpc, x_lead, v_lead, a_lead, self.a_lead_tau)
+        self.new_lead = True
+
+      self.prev_lead_status = True
+      self.prev_lead_x = x_lead
+      self.cur_state[0].x_l = x_lead
+      self.cur_state[0].v_l = v_lead
+    else:
+      self.prev_lead_status = False
+      # Fake a fast lead car, so mpc keeps running
+      self.cur_state[0].x_l = 50.0
+      self.cur_state[0].v_l = v_ego + 10.0
+      a_lead = 0.0
+      self.a_lead_tau = _LEAD_ACCEL_TAU
+
+    # Calculate mpc
+    t = sec_since_boot()
+
+    # hardcode follow time for now
+    follow_time = 1.8
+    distance_cost = 0.1
+    follow_time_value = scale_time_gap(v_ego, follow_time)
+
+    n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, follow_time_value, distance_cost)
+    duration = int((sec_since_boot() - t) * 1e9)
+    self.send_mpc_solution(n_its, duration)
+
+    # Get solution. MPC timestep is 0.2 s, so interpolation to 0.05 s is needed
+    self.v_mpc = self.mpc_solution[0].v_ego[1]
+    self.a_mpc = self.mpc_solution[0].a_ego[1]
+    self.v_mpc_future = self.mpc_solution[0].v_ego[10]
+
+    # Reset if NaN or goes through lead car
+    dls = np.array(list(self.mpc_solution[0].x_l)) - np.array(list(self.mpc_solution[0].x_ego))
+    crashing = min(dls) < -50.0
+    nans = np.any(np.isnan(list(self.mpc_solution[0].v_ego)))
+    backwards = min(list(self.mpc_solution[0].v_ego)) < -0.01
+
+    if ((backwards or crashing) and self.prev_lead_status) or nans:
+      if t > self.last_cloudlog_t + 5.0:
+        self.last_cloudlog_t = t
+        cloudlog.warning("Longitudinal mpc %d reset - backwards: %s crashing: %s nan: %s" % (
+                          self.mpc_id, backwards, crashing, nans))
+
+      self.libmpc.init(MPC_COST_LONG.TTC, MPC_COST_LONG.DISTANCE,
+                       MPC_COST_LONG.ACCELERATION, MPC_COST_LONG.JERK)
+      self.cur_state[0].v_ego = v_ego
+      self.cur_state[0].a_ego = 0.0
+      self.v_mpc = v_ego
+      self.a_mpc = CS.carState.aEgo
+      self.prev_lead_status = False
+
+
+>>>>>>> Add time gap and distance cost parameters to Longitudinal MPC (#23)
 class Planner(object):
   def __init__(self, CP, fcw_enabled):
     context = zmq.Context()

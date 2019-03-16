@@ -64,7 +64,7 @@ extern "C"
 /** Number of control/estimation intervals. */
 #define ACADO_N 20
 /** Number of online data values. */
-#define ACADO_NOD 2
+#define ACADO_NOD 3
 /** Number of path constraints. */
 #define ACADO_NPAC 0
 /** Number of control variables. */
@@ -83,6 +83,8 @@ extern "C"
 #define ACADO_QP_NV 23
 /** Number of Runge-Kutta stages per integration step. */
 #define ACADO_RK_NSTAGES 4
+/** Single versus double precision data type representation. */
+#define ACADO_SINGLE_PRECISION 0
 /** Providing interface for arrival cost. */
 #define ACADO_USE_ARRIVAL_COST 0
 /** Indicator for usage of non-hard-coded linear terms in the objective. */
@@ -114,11 +116,11 @@ real_t x[ 63 ];
  */
 real_t u[ 20 ];
 
-/** Matrix of size: 21 x 2 (row major format)
+/** Matrix of size: 21 x 3 (row major format)
  * 
  *  Matrix containing 21 online data vectors.
  */
-real_t od[ 42 ];
+real_t od[ 63 ];
 
 /** Column vector of size: 80
  * 
@@ -157,14 +159,14 @@ typedef struct ACADOworkspace_
 {
 real_t rk_ttt;
 
-/** Row vector of size: 18 */
-real_t rk_xxx[ 18 ];
+/** Row vector of size: 19 */
+real_t rk_xxx[ 19 ];
 
 /** Matrix of size: 4 x 15 (row major format) */
 real_t rk_kkk[ 60 ];
 
-/** Row vector of size: 18 */
-real_t state[ 18 ];
+/** Row vector of size: 19 */
+real_t state[ 19 ];
 
 /** Column vector of size: 60 */
 real_t d[ 60 ];
@@ -184,8 +186,8 @@ real_t evGu[ 60 ];
 /** Column vector of size: 15 */
 real_t objAuxVar[ 15 ];
 
-/** Row vector of size: 6 */
-real_t objValueIn[ 6 ];
+/** Row vector of size: 7 */
+real_t objValueIn[ 7 ];
 
 /** Row vector of size: 20 */
 real_t objValueOut[ 20 ];
