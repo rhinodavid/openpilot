@@ -2,7 +2,7 @@
 from common.realtime import sec_since_boot
 from cereal import car
 from selfdrive.config import Conversions as CV
-from selfdrive.controls.lib.drive_helpers import EventTypes as ET, create_event
+from selfdrive.controls.lib.drive_helpers import EventTypes as ET, create_event, TimeGaps
 from selfdrive.controls.lib.vehicle_model import VehicleModel
 from selfdrive.car.toyota.carstate import CarState, get_can_parser, get_cam_can_parser
 from selfdrive.car.toyota.values import ECU, check_ecu_msgs, CAR
@@ -12,7 +12,6 @@ try:
   from selfdrive.car.toyota.carcontroller import CarController
 except ImportError:
   CarController = None
-
 
 class CarInterface(object):
   def __init__(self, CP, sendcan=None):
@@ -270,6 +269,9 @@ class CarInterface(object):
     ret.cruiseState.available = bool(self.CS.main_on)
     ret.cruiseState.speedOffset = 0.
 
+    # Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    ret.cruiseState.timeGap = TimeGaps.from_toyota_distance_lines(self.CS.read_distance_lines)
+
     if self.CP.carFingerprint in [CAR.RAV4H, CAR.HIGHLANDERH, CAR.HIGHLANDER] or self.CP.enableGasInterceptor:
       # ignore standstill in hybrid vehicles, since pcm allows to restart without
       # receiving any special command
@@ -289,6 +291,13 @@ class CarInterface(object):
       be = car.CarState.ButtonEvent.new_message()
       be.type = 'rightBlinker'
       be.pressed = self.CS.right_blinker_on != 0
+      buttonEvents.append(be)
+
+    # Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    if self.CS.time_gap_button_pressed:
+      be = car.CarState.ButtonEvent.new_message()
+      be.type = 'accTimeGapButton'
+      be.pressed = True
       buttonEvents.append(be)
 
     ret.buttonEvents = buttonEvents
@@ -369,7 +378,8 @@ class CarInterface(object):
     self.CC.update(self.sendcan, c.enabled, self.CS, self.frame,
                    c.actuators, c.cruiseControl.cancel, c.hudControl.visualAlert,
                    c.hudControl.audibleAlert, self.forwarding_camera,
-                   c.hudControl.leftLaneVisible, c.hudControl.rightLaneVisible, c.hudControl.leadVisible)
+                   c.hudControl.leftLaneVisible, c.hudControl.rightLaneVisible,
+                   c.hudControl.leadVisible, c.cruiseControl.advanceTimeGap)
 
     self.frame += 1
     return False

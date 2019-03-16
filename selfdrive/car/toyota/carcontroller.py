@@ -1,5 +1,6 @@
 from cereal import car
 from common.numpy_fast import clip, interp
+from common.realtime import sec_since_boot
 from selfdrive.boardd.boardd import can_list_to_can_capnp
 from selfdrive.car import apply_toyota_steer_torque_limits
 from selfdrive.car import create_gas_command
@@ -124,8 +125,12 @@ class CarController(object):
 
     self.packer = CANPacker(dbc_name)
 
+    # Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    # used to rate limit sending of ACC Time Gap advance commands
+    self.last_acc_advance_time = 0.
+
   def update(self, sendcan, enabled, CS, frame, actuators,
-             pcm_cancel_cmd, hud_alert, audible_alert, forwarding_camera, left_line, right_line, lead):
+             pcm_cancel_cmd, hud_alert, audible_alert, forwarding_camera, left_line, right_line, lead, advance_time_gap = False):
 
     # *** compute control surfaces ***
 
@@ -215,13 +220,24 @@ class CarController(object):
     elif ECU.APGS in self.fake_ecus:
       can_sends.append(create_ipas_steer_command(self.packer, 0, 0, True))
 
+    # added to support OpenpilotButtons -- https://github.com/rhinodavid/OpenpilotButtons
+    # check to see if the number of time gap lines displayed by the car matches the number
+    # we are trying to command. if they are different, send a distance of 1 to change the displayed number of lines
+    advance_acc_time_gap_setting = 0
+    now_time = sec_since_boot()
+    if advance_time_gap and now_time - self.last_acc_advance_time > 0.05:
+      # rate limit this to once per 0.05 seconds
+      # was getting a soft disengage from openpilot without the rate limit
+      advance_acc_time_gap_setting = 1
+      self.last_acc_advance_time = now_time
+
     # accel cmd comes from DSU, but we can spam can to cancel the system even if we are using lat only control
     if (frame % 3 == 0 and ECU.DSU in self.fake_ecus) or (pcm_cancel_cmd and ECU.CAM in self.fake_ecus):
       lead = lead or CS.v_ego < 12.    # at low speed we always assume the lead is present do ACC can be engaged
       if ECU.DSU in self.fake_ecus:
-        can_sends.append(create_accel_command(self.packer, apply_accel, pcm_cancel_cmd, self.standstill_req, lead))
+        can_sends.append(create_accel_command(self.packer, apply_accel, pcm_cancel_cmd, self.standstill_req, lead, advance_acc_time_gap_setting))
       else:
-        can_sends.append(create_accel_command(self.packer, 0, pcm_cancel_cmd, False, lead))
+        can_sends.append(create_accel_command(self.packer, 0, pcm_cancel_cmd, False, lead, advance_acc_time_gap_setting))
 
     if (frame % 2 == 0) and (CS.CP.enableGasInterceptor):
         # send exactly zero if apply_gas is zero. Interceptor will send the max between read value and apply_gas.
