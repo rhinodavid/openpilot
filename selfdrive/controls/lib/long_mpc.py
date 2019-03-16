@@ -90,7 +90,14 @@ class LongitudinalMpc(object):
 
     # Calculate mpc
     t = sec_since_boot()
-    n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead)
+
+    # Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+    # hardcode follow time for now
+    follow_time = 1.8
+    distance_cost = 0.1
+    follow_time_value = scale_time_gap(v_ego, follow_time)
+
+    n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, follow_time_value, distance_cost)
     duration = int((sec_since_boot() - t) * 1e9)
     self.send_mpc_solution(n_its, duration)
 
