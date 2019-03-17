@@ -68,6 +68,22 @@ class TimeGaps:
     if time_gap == TimeGaps.MEDIUM: return 2
     if time_gap == TimeGaps.NEAR: return 1
     raise ValueError('%s is not a valid time gap value' % time_gap)
+  
+  @staticmethod
+  def to_seconds(time_gap):
+    if time_gap == TimeGaps.FAR: return 1.8
+    if time_gap == TimeGaps.MEDIUM: return 1.35
+    if time_gap == TimeGaps.NEAR: return 0.9
+    # default to 'far' time gap
+    return 1.8
+
+  @staticmethod
+  def to_distance_cost(time_gap):
+    if time_gap == TimeGaps.FAR: return 0.1
+    if time_gap == TimeGaps.MEDIUM: return 0.5
+    if time_gap == TimeGaps.NEAR: return 1.0
+    # default to 'far' time gap
+    return 0.1
 
 def create_event(name, types):
   event = car.CarEvent.new_message()

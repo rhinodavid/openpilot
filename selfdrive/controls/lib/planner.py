@@ -10,7 +10,7 @@ import selfdrive.messaging as messaging
 from selfdrive.swaglog import cloudlog
 from selfdrive.config import Conversions as CV
 from selfdrive.services import service_list
-from selfdrive.controls.lib.drive_helpers import create_event, MPC_COST_LONG, EventTypes as ET
+from selfdrive.controls.lib.drive_helpers import create_event, MPC_COST_LONG, EventTypes as ET, TimeGaps
 from selfdrive.controls.lib.longitudinal_mpc import libmpc_py
 from selfdrive.controls.lib.speed_smoother import speed_smoother
 from selfdrive.controls.lib.longcontrol import LongCtrlState, MIN_CAN_SPEED
@@ -194,6 +194,8 @@ class LongitudinalMpc(object):
 
   def update(self, CS, lead, v_cruise_setpoint):
     v_ego = CS.carState.vEgo
+    # OpenpilotButtons -- https://github.com/rhinodavid/OpenpilotButtons
+    time_gap = CS.carState.cruiseState.timeGap
 
     # Setup current mpc state
     self.cur_state[0].x_ego = 0.0
@@ -228,12 +230,12 @@ class LongitudinalMpc(object):
     # Calculate mpc
     t = sec_since_boot()
 
-    # hardcode follow time for now
-    follow_time = 1.8
-    distance_cost = 0.1
-    follow_time_value = scale_time_gap(v_ego, follow_time)
+    # OpenpilotButtons -- https://github.com/rhinodavid/OpenpilotButtons
+    time_gap_s = TimeGaps.to_seconds(time_gap)
+    distance_cost = TimeGaps.to_distance_cost(time_gap)
+    time_gap_scaled_s = scale_time_gap(v_ego, time_gap_s)
 
-    n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, follow_time_value, distance_cost)
+    n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, time_gap_scaled_s, distance_cost)
     duration = int((sec_since_boot() - t) * 1e9)
     self.send_mpc_solution(n_its, duration)
 
