@@ -526,13 +526,8 @@ def controlsd_thread(gctx=None, rate=100):
     prof.checkpoint("State Control")
 
     # Publish data
-<<<<<<< HEAD
-    CC = data_send(plan, path_plan, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, rk, carstate, carcontrol,
-                   live100, AM, driver_status, LaC, LoC, angle_model_bias, passive, start_time, params, v_acc, a_acc)
-=======
     CC = data_send(plan, path_plan, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, time_gap, rk, carstate, carcontrol,
-                   live100, AM, driver_status, LaC, LoC, angle_offset, passive, start_time, params, v_acc, a_acc)
->>>>>>> Add time gap setting and update machinery (#24)
+                   live100, AM, driver_status, LaC, LoC, angle_model_bias, passive, start_time, params, v_acc, a_acc)
     prof.checkpoint("Sent")
 
     rk.keep_time()  # Run at 100Hz
