@@ -1,3 +1,4 @@
+#include <math.h>
 #include <acado_code_generation.hpp>
 
 const int controlHorizon = 50;
@@ -26,7 +27,26 @@ int main( )
   // see https://github.com/acado/acado/issues/54 for a discussion of `OnlineData`
   OnlineData time_gap;
 
-  auto desired = 4.0 + RW(v_ego, v_l, time_gap);
+  /**
+   * openpilot targets a 4m distance behind a target vehicle while stopped.
+   * When stopping (at a light, for instance) this car-length distance feels
+   * a bit awkward. Let's attempt to scale this down as the car comes to a stop.
+   *
+   * At ~20 mph, start closing the distance from 4m, down to 2m as the car stops
+   *
+   * 9.0 m/s = 20.13 mi/h
+   *
+   * Use a sigmoid function (check out a visualization:
+   * https://www.desmos.com/calculator/xqezdw0lij)
+   *
+   *           2
+   * ---------------------- + 2 = follow dist const
+   *      (5 - 1.1 * v_ego)
+   * 1 + e
+   */
+
+  auto follow_const_m = (2 / (1 + exp(5 - 1.1 * v_ego))) + 2;
+  auto desired = follow_const_m + RW(v_ego, v_l, time_gap);
   auto d_l = x_l - x_ego;
 
   // Equations of motion
