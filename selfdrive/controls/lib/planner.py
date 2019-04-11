@@ -60,7 +60,6 @@ def limit_accel_in_turns(v_ego, angle_steers, a_target, CP):
   a_target[1] = min(a_target[1], a_x_allowed)
   return a_target
 
-
 class Planner(object):
   def __init__(self, CP, fcw_enabled):
     context = zmq.Context()

@@ -3,10 +3,27 @@ import numpy as np
 import selfdrive.messaging as messaging
 from selfdrive.swaglog import cloudlog
 from common.realtime import sec_since_boot
+from selfdrive.config import Conversions as CV
 from selfdrive.controls.lib.radar_helpers import _LEAD_ACCEL_TAU
 from selfdrive.controls.lib.longitudinal_mpc import libmpc_py
-from selfdrive.controls.lib.drive_helpers import MPC_COST_LONG
+from selfdrive.controls.lib.drive_helpers import MPC_COST_LONG, TimeGaps
 
+def scale_time_gap(v_ego, commanded_time_gap):
+  """
+  Raise the time gap as we slow down. Use the full time gap at 30mph and increase
+  it to 1.8s at 25mph
+  Keyword arguments:
+  v_ego -- the vehicle speed in m/s
+  commanded_time_gap -- the time gap the set by the user in s
+  See Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
+  """
+  ms30 = 30. * CV.MPH_TO_MS
+  ms20 = 20. * CV.MPH_TO_MS
+  if v_ego > ms30:
+    return commanded_time_gap
+  if v_ego < ms20:
+    return 1.8
+  return round(float(np.interp(v_ego, [ms20, ms30], [1.8, commanded_time_gap])), 2)
 
 class LongitudinalMpc(object):
   def __init__(self, mpc_id, live_longitudinal_mpc):
@@ -57,6 +74,8 @@ class LongitudinalMpc(object):
 
   def update(self, CS, lead, v_cruise_setpoint):
     v_ego = CS.carState.vEgo
+    # OpenpilotButtons -- https://github.com/rhinodavid/OpenpilotButtons
+    time_gap = CS.carState.cruiseState.timeGap
 
     # Setup current mpc state
     self.cur_state[0].x_ego = 0.0
@@ -90,7 +109,13 @@ class LongitudinalMpc(object):
 
     # Calculate mpc
     t = sec_since_boot()
-    n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead)
+
+    # OpenpilotButtons -- https://github.com/rhinodavid/OpenpilotButtons
+    time_gap_s = TimeGaps.to_seconds(time_gap)
+    distance_cost = TimeGaps.to_distance_cost(time_gap)
+    time_gap_scaled_s = scale_time_gap(v_ego, time_gap_s)
+
+    n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, time_gap_scaled_s, distance_cost)
     duration = int((sec_since_boot() - t) * 1e9)
     self.send_mpc_solution(n_its, duration)
 
