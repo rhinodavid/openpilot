@@ -32,20 +32,20 @@ int main( )
    * When stopping (at a light, for instance) this car-length distance feels
    * a bit awkward. Let's attempt to scale this down as the car comes to a stop.
    *
-   * At ~20 mph, start closing the distance from 4m, down to 2m as the car stops
+   * At ~20 mph, start closing the distance from 4m, down to 1.5m as the car stops
    *
    * 9.0 m/s = 20.13 mi/h
    *
    * Use a sigmoid function (check out a visualization:
-   * https://www.desmos.com/calculator/xqezdw0lij)
+   * https://www.desmos.com/calculator/dhefqmyknw)
    *
-   *           2
-   * ---------------------- + 2 = follow dist const
-   *      (5 - 1.1 * v_ego)
+   *           2.5
+   * ---------------------- + 1.5 = follow dist const
+   *      (6.5 - 1.35 * v_ego)
    * 1 + e
    */
 
-  auto follow_const_m = (2 / (1 + exp(5 - 1.1 * v_ego))) + 2;
+  auto follow_const_m = (2.5 / (1 + exp(6.5 - 1.35 * v_ego))) + 1.5;
   auto desired = follow_const_m + RW(v_ego, v_l, time_gap);
   auto d_l = x_l - x_ego;
 
