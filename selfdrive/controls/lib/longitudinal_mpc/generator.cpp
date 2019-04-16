@@ -37,15 +37,15 @@ int main( )
    * 9.0 m/s = 20.13 mi/h
    *
    * Use a sigmoid function (check out a visualization:
-   * https://www.desmos.com/calculator/dhefqmyknw)
+   * https://www.desmos.com/calculator/ev4n5otjw0)
    *
-   *           2.5
-   * ---------------------- + 1.5 = follow dist const
-   *      (6.5 - 1.35 * v_ego)
+   *           2.75
+   * ---------------------- + 1.25 = follow dist const
+   *      (2.2 - 0.9 * v_ego)
    * 1 + e
    */
 
-  auto follow_const_m = (2.5 / (1 + exp(6.5 - 1.35 * v_ego))) + 1.5;
+  auto follow_const_m = (2.75 / (1 + exp(2.2 - 0.9 * v_ego))) + 1.25;
   auto desired = follow_const_m + RW(v_ego, v_l, time_gap);
   auto d_l = x_l - x_ego;
 
