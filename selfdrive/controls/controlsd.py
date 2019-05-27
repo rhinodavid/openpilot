@@ -464,7 +464,7 @@ def controlsd_thread(gctx=None, rate=100):
   low_battery = False
 
   # Openpilot Buttons -- https://github.com/rhinodavid/OpenpilotButtons
-  time_gap = TimeGaps.FAR
+  time_gap = TimeGaps.MEDIUM
 
   plan = messaging.new_message()
   plan.init('plan')
